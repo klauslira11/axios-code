@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { supabase, type QRCodeRecord } from './supabase';
+import { supabase, isSupabaseConfigured, type QRCodeRecord } from './supabase';
 import { getOrGenerateQRCodeImage } from './qrService';
-import { Download, Edit2, Plus, Check, ExternalLink, X } from 'lucide-react';
+import { Download, Edit2, Plus, Check, ExternalLink, X, AlertTriangle } from 'lucide-react';
 
 export function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
@@ -31,6 +31,8 @@ export function App() {
 
   // Lógica de Redirecionamento se a URL for /q/:id
   useEffect(() => {
+    if (!supabase || !isSupabaseConfigured) return;
+
     if (pathname.startsWith('/q/')) {
       const id = pathname.replace('/q/', '').trim();
       if (id) {
@@ -54,6 +56,8 @@ export function App() {
 
   // Carregar todos os QR codes salvos
   const loadQRCodes = async () => {
+    if (!supabase || !isSupabaseConfigured) return;
+
     setLoading(true);
     const { data, error } = await supabase
       .from('qr_codes')
@@ -76,7 +80,7 @@ export function App() {
   };
 
   useEffect(() => {
-    if (!pathname.startsWith('/q/')) {
+    if (isSupabaseConfigured && !pathname.startsWith('/q/')) {
       loadQRCodes();
     }
   }, [pathname]);
@@ -95,6 +99,11 @@ export function App() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg(null);
+
+    if (!supabase || !isSupabaseConfigured) {
+      setMsg({ type: 'error', text: 'As variáveis do Supabase não foram configuradas na plataforma de hospedagem.' });
+      return;
+    }
 
     if (!name.trim()) {
       setMsg({ type: 'error', text: 'Por favor, informe o nome do QR Code.' });
@@ -133,6 +142,11 @@ export function App() {
 
   const handleUpdate = async (id: string) => {
     setMsg(null);
+
+    if (!supabase || !isSupabaseConfigured) {
+      setMsg({ type: 'error', text: 'Supabase não configurado.' });
+      return;
+    }
 
     if (!editName.trim()) {
       setMsg({ type: 'error', text: 'Informe o nome do QR Code.' });
@@ -175,6 +189,32 @@ export function App() {
     link.click();
     document.body.removeChild(link);
   };
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="container" style={{ marginTop: '2rem' }}>
+        <header>
+          <h1>Gerenciador de QR Codes Dinâmicos</h1>
+        </header>
+        <div className="card" style={{ borderColor: 'var(--danger)', textAlign: 'center', padding: '2.5rem 1.5rem' }}>
+          <AlertTriangle size={48} style={{ color: 'var(--danger)', marginBottom: '1rem' }} />
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '0.75rem', color: '#f8fafc' }}>
+            Configuração do Supabase Ausente
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', maxWidth: '500px', margin: '0 auto 1.5rem auto' }}>
+            O aplicativo precisa das variáveis de ambiente do Supabase cadastradas no painel da sua hospedagem (Netlify).
+          </p>
+          <div style={{ background: 'var(--bg-main)', padding: '1rem', borderRadius: '8px', textAlign: 'left', display: 'inline-block', fontSize: '0.85rem' }}>
+            <p style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: 'var(--accent)' }}>Cadastre na Netlify (Site settings &gt; Environment variables):</p>
+            <ul style={{ paddingLeft: '1.25rem', color: 'var(--text-muted)' }}>
+              <li style={{ marginBottom: '0.25rem' }}><code>VITE_SUPABASE_URL</code></li>
+              <li><code>VITE_SUPABASE_ANON_KEY</code></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (redirecting) {
     return (
